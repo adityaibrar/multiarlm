@@ -1,29 +1,45 @@
 package com.example.mutiralmm;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mutiralmm.adapters.AlbumAdapter;
+import com.example.mutiralmm.services.ApiService;
 
-import java.io.File;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AlbumActivity extends AppCompatActivity {
 
     private RecyclerView rvAlbum;
     private EditText etSearch;
     private ImageView btnBack;
+    private ProgressBar progressBar;
     private AlbumAdapter adapter;
     private List<AlbumAdapter.AlbumFolder> allFolders;
     private List<AlbumAdapter.AlbumFolder> filteredFolders;
+
+    private ApiService apiService;
+    private SharedPreferences sharedPreferences;
+    private int userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,16 +47,53 @@ public class AlbumActivity extends AppCompatActivity {
         setContentView(R.layout.activity_album);
 
         initViews();
+        initApiService();
+
+        // Validasi user login sebelum melanjutkan
+        if (!validateUserSession()) {
+            return; // Jika tidak valid, activity akan di-finish
+        }
+
         setupRecyclerView();
-        loadFolders();
         setupSearch();
         setupBackButton();
+        loadAlbums();
     }
 
     private void initViews() {
         rvAlbum = findViewById(R.id.rvAlbum);
         etSearch = findViewById(R.id.etSearch);
         btnBack = findViewById(R.id.btnBack);
+        // progressBar = findViewById(R.id.progressBar); // Pastikan ada di layout
+    }
+
+    private void initApiService() {
+        apiService = new ApiService(this);
+        sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+    }
+
+    private boolean validateUserSession() {
+        // Cek apakah user sudah login
+        boolean isLoggedIn = sharedPreferences.getBoolean("is_logged_in", false);
+        userId = sharedPreferences.getInt("user_id", 1);
+
+        if (!isLoggedIn || userId == -1) {
+            Toast.makeText(this, "Sesi login telah berakhir. Silakan login kembali.", Toast.LENGTH_LONG).show();
+
+            // Hapus data session
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.clear();
+            editor.apply();
+
+            // Kembali ke login
+            Intent intent = new Intent(this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+            return false;
+        }
+
+        return true;
     }
 
     private void setupRecyclerView() {
@@ -51,82 +104,124 @@ public class AlbumActivity extends AppCompatActivity {
         rvAlbum.setAdapter(adapter);
     }
 
-    private void loadFolders() {
-        // Clear existing data to prevent duplicates
-        allFolders.clear();
-
-        File picturesDir = getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES);
-
-        if (picturesDir != null && picturesDir.exists()) {
-            File[] folders = picturesDir.listFiles();
-
-            if (folders != null) {
-                for (File folder : folders) {
-                    if (folder.isDirectory()) {
-                        int fileCount = countImageFiles(folder);
-                        if (fileCount > 0) { // Hanya tampilkan folder yang memiliki gambar
-                            long lastModified = getLastModifiedTime(folder);
-                            AlbumAdapter.AlbumFolder albumFolder = new AlbumAdapter.AlbumFolder(
-                                    folder.getName(),
-                                    folder.getAbsolutePath(),
-                                    fileCount,
-                                    lastModified
-                            );
-                            allFolders.add(albumFolder);
-                        }
-                    }
-                }
-            }
+    private void loadAlbums() {
+        if (userId == -1) {
+            Toast.makeText(this, "User ID tidak valid", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        // Sort berdasarkan nama folder (tahun) secara descending
-        allFolders.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
+        showLoading(true);
 
-        // Update filtered folders and notify adapter
-        updateFilteredFolders();
+        // Menggunakan getDocuments dengan parameter default
+        apiService.getAlbums(userId,  new ApiService.ApiCallback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                runOnUiThread(() -> {
+                    try {
+//                        Log.e("userId: ", u);
+                        showLoading(false);
+
+                        boolean success = response.getBoolean("success");
+                        if (success) {
+                            JSONObject data = response.getJSONObject("data");
+                            JSONArray documentsArray = data.getJSONArray("documents");
+
+                            // Group documents by year to create album folders
+                            Map<String, List<JSONObject>> documentsByYear = new HashMap<>();
+
+                            for (int i = 0; i < documentsArray.length(); i++) {
+                                JSONObject docObj = documentsArray.getJSONObject(i);
+                                String year = docObj.getString("doc_year");
+
+                                if (!documentsByYear.containsKey(year)) {
+                                    documentsByYear.put(year, new ArrayList<>());
+                                }
+                                documentsByYear.get(year).add(docObj);
+                            }
+
+                            allFolders.clear();
+
+                            // Create album folders from grouped documents
+                            for (Map.Entry<String, List<JSONObject>> entry : documentsByYear.entrySet()) {
+                                String year = entry.getKey();
+                                List<JSONObject> docs = entry.getValue();
+
+                                // Find the latest modified document for lastModified
+                                long latestModified = 0;
+                                for (JSONObject doc : docs) {
+                                    try {
+                                        // Convert created_at to timestamp (simplified)
+                                        String createdAt = doc.getString("created_at");
+                                        long timestamp = System.currentTimeMillis(); // Fallback
+                                        // You might want to parse the actual date string here
+                                        if (timestamp > latestModified) {
+                                            latestModified = timestamp;
+                                        }
+                                    } catch (Exception e) {
+                                        latestModified = System.currentTimeMillis();
+                                    }
+                                }
+
+                                AlbumAdapter.AlbumFolder albumFolder = new AlbumAdapter.AlbumFolder(
+                                        "Dokumen " + year,
+                                        "documents/" + year,
+                                        docs.size(),
+                                        latestModified
+                                );
+
+                                allFolders.add(albumFolder);
+                            }
+
+                            // Sort folders by name (year) descending
+                            allFolders.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
+
+                            updateFilteredFolders();
+
+                            if (allFolders.isEmpty()) {
+                                Toast.makeText(AlbumActivity.this, "Belum ada dokumen tersimpan", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            String message = response.optString("message", "Gagal memuat dokumen");
+                            Toast.makeText(AlbumActivity.this, "Error: " + message, Toast.LENGTH_SHORT).show();
+                        }
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        Toast.makeText(AlbumActivity.this, "Error parsing data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+
+                    // Cek apakah error karena unauthorized
+                    if (error.contains("401") || error.contains("unauthorized")) {
+                        Toast.makeText(AlbumActivity.this, "Sesi login berakhir. Silakan login kembali.", Toast.LENGTH_LONG).show();
+
+                        // Hapus session dan kembali ke login
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.clear();
+                        editor.apply();
+
+                        Intent intent = new Intent(AlbumActivity.this, LoginActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        Toast.makeText(AlbumActivity.this, "Failed to load documents: " + error, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
     }
 
     private void updateFilteredFolders() {
         filteredFolders.clear();
         filteredFolders.addAll(allFolders);
         adapter.notifyDataSetChanged();
-    }
-
-    private int countImageFiles(File folder) {
-        File[] files = folder.listFiles();
-        if (files == null) return 0;
-
-        int count = 0;
-        for (File file : files) {
-            if (file.isFile() && isImageFile(file.getName())) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private boolean isImageFile(String fileName) {
-        String name = fileName.toLowerCase();
-        return name.endsWith(".jpg") || name.endsWith(".jpeg") ||
-                name.endsWith(".png") || name.endsWith(".gif") ||
-                name.endsWith(".bmp") || name.endsWith(".webp");
-    }
-
-    private long getLastModifiedTime(File folder) {
-        long lastModified = folder.lastModified();
-        File[] files = folder.listFiles();
-
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile() && isImageFile(file.getName())) {
-                    if (file.lastModified() > lastModified) {
-                        lastModified = file.lastModified();
-                    }
-                }
-            }
-        }
-
-        return lastModified;
     }
 
     private void setupSearch() {
@@ -164,10 +259,31 @@ public class AlbumActivity extends AppCompatActivity {
         btnBack.setOnClickListener(v -> onBackPressed());
     }
 
+    private void showLoading(boolean show) {
+        if (progressBar != null) {
+            progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
+        rvAlbum.setVisibility(show ? View.GONE : View.VISIBLE);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh data ketika kembali dari activity lain
-        loadFolders();
+
+        // Validasi ulang session ketika activity resume
+        if (validateUserSession()) {
+            // Refresh data ketika kembali dari activity lain
+            loadAlbums();
+        }
+    }
+
+    // Method untuk mendapatkan current user ID (jika dibutuhkan di tempat lain)
+    public int getCurrentUserId() {
+        return userId;
+    }
+
+    // Method untuk mendapatkan username (jika dibutuhkan)
+    public String getCurrentUsername() {
+        return sharedPreferences.getString("username", "");
     }
 }
