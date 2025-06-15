@@ -168,7 +168,7 @@ public class ApiService {
         RequestBody requestBody = builder.build();
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "document.php?action=upload")
+                .url(BASE_URL + "dokumen.php?action=upload")
                 .post(requestBody)
                 .build();
 

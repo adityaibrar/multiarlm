@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
@@ -25,6 +26,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+
+import com.example.mutiralmm.services.ApiService;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -46,8 +52,7 @@ public class UploadActivity extends AppCompatActivity {
     Uri selectedImageUri;
     String savedImagePath;
     File photoFile;
-
-    DBHelper dbHelper;
+    ApiService apiService;
 
     private final ActivityResultLauncher<Intent> pickImageLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -80,7 +85,7 @@ public class UploadActivity extends AppCompatActivity {
         etDocDesc = findViewById(R.id.etDocDesc);
         saveButton = findViewById(R.id.saveButton);
 
-        dbHelper = new DBHelper(this);
+        apiService = new ApiService(this);
 
         uploadImage.setOnClickListener(view -> {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
@@ -177,31 +182,36 @@ public class UploadActivity extends AppCompatActivity {
             outStream.flush();
             outStream.close();
             savedImagePath = imageFile.getAbsolutePath();
+            apiService.uploadDocument(
+                    1,
+                    docName,
+                    docDate,
+                    docNumber,
+                    docDesc,
+                    imageFile,new ApiService.ApiCallback() {
+                        @Override
+                        public void onSuccess(JSONObject response) {
+                            runOnUiThread(() -> {
+                                Toast.makeText(UploadActivity.this, "Dokumen berhasil disimpan", Toast.LENGTH_SHORT).show();
+                                clearForm();
+                                startActivity(new Intent(UploadActivity.this, DashboardActivity.class));
+                            });
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            runOnUiThread(() ->
+                                    Toast.makeText(UploadActivity.this, "Upload gagal: " + error, Toast.LENGTH_SHORT).show()
+                            );
+                        }
+                    }
+                    );
         } catch (Exception e) {
             Toast.makeText(this, "Gagal menyimpan gambar: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("Gagal Menyimpan gambar: ", e.getMessage());
             return;
         }
 
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(DBHelper.COLUMN_DOC_NAME, docName);
-        values.put(DBHelper.COLUMN_DOC_DATE, docDate);
-        values.put(DBHelper.COLUMN_DOC_NUMBER, docNumber);
-        values.put(DBHelper.COLUMN_DOC_DESC, docDesc);
-        values.put(DBHelper.COLUMN_IMAGE_PATH, savedImagePath);
-        values.put(DBHelper.COLUMN_DOC_YEAR, year);
-
-        // ini salah upload tabel harusnya ke tabel doc
-        long result = db.insert(DBHelper.TABLE_DOC, null, values);
-        if (result != -1) {
-            Toast.makeText(this, "Data berhasil disimpan", Toast.LENGTH_SHORT).show();
-            clearForm();
-            startActivity(new Intent(UploadActivity.this, DashboardActivity.class));
-        } else {
-            Toast.makeText(this, "Gagal menyimpan data", Toast.LENGTH_SHORT).show();
-        }
-
-        db.close();
     }
 
     private void clearForm() {
