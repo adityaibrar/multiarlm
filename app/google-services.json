@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1090306408860",
+    "project_id": "mutiarlmm",
+    "storage_bucket": "mutiarlmm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1090306408860:android:1531e929d3a3b3960ec859",
+        "android_client_info": {
+          "package_name": "com.example.mutiralmm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDprohSf1qB05OV_2u6Sv_ctqXFE-WFgJ4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

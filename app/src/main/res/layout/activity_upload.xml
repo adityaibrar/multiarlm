@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/scrollView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:padding="16dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="8dp"
+        android:layout_marginTop="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="@android:color/white">
+
+            <!-- Judul -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Upload Dokumen"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginBottom="12dp"
+                android:textColor="@android:color/black"/>
+
+            <!-- ImageView untuk menampilkan preview gambar -->
+            <ImageView
+                android:id="@+id/uploadImage"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/uploadimg"
+                android:background="@drawable/lavender_border"
+                android:contentDescription="Pilih Gambar"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Tombol Pilih dari Galeri -->
+            <Button
+                android:id="@+id/btnAmbilFoto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Pilih dari Galeri"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Tombol Ambil dari Kamera -->
+            <Button
+                android:id="@+id/btnCaptureCamera"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ambil dari Kamera"
+                android:layout_marginBottom="16dp" />
+            <!-- EditText: Nama Dokumen -->
+            <EditText
+                android:id="@+id/etDocName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Nama Dokumen"
+                android:inputType="text"
+                android:padding="12dp"
+                android:background="@drawable/lavender_border"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- EditText: Tanggal Dokumen (jj-mm-tttt) -->
+            <EditText
+                android:id="@+id/etDocDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Tanggal Dokumen (dd-MM-yyyy)"
+                android:inputType="datetime"
+                android:padding="12dp"
+                android:background="@drawable/lavender_border"
+                android:layout_marginBottom="12dp" />
+
+            <!-- EditText: No Dokumen -->
+            <EditText
+                android:id="@+id/etDocNumber"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="No Dokumen"
+                android:inputType="text"
+                android:padding="12dp"
+                android:background="@drawable/lavender_border"
+                android:layout_marginBottom="12dp" />
+
+            <!-- EditText: Keterangan Dokumen -->
+            <EditText
+                android:id="@+id/etDocDesc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Keterangan Dokumen"
+                android:inputType="textMultiLine"
+                android:padding="12dp"
+                android:background="@drawable/lavender_border"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Tombol Save -->
+            <Button
+                android:id="@+id/saveButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Save"
+                android:textSize="18sp"
+                android:background="@drawable/lavender_border"
+                android:textColor="@android:color/white"
+                android:padding="12dp" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+</ScrollView>
