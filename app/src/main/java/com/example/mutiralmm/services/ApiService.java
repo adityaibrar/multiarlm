@@ -187,8 +187,8 @@ public class ApiService {
     }
 
     public void getDocuments(int userId, int page, int limit, String search, String year, ApiCallback callback) {
-        String url = BASE_URL + "document.php?action=list&user_id=" + userId +
-                "&page=" + page + "&limit=" + limit;
+        String url = BASE_URL + "dokumen.php?action=list&user_id=" + userId +
+                "&page=" + page + "&year="+ year +"&limit=" + limit;
 
         if (search != null && !search.isEmpty()) {
             url += "&search=" + search;
@@ -219,7 +219,7 @@ public class ApiService {
 
     public void getAlbums(int userId, ApiCallback callback) {
         Request request = new Request.Builder()
-                .url(BASE_URL + "dokumen.php?action=list&user_id=" + userId)
+                .url(BASE_URL + "dokumen.php?action=get_by_year&user_id=" + userId)
                 .get()
                 .build();
 

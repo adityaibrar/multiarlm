@@ -27,6 +27,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
+import com.example.mutiralmm.helpers.SessionManager;
 import com.example.mutiralmm.services.ApiService;
 
 import org.json.JSONException;
@@ -44,6 +45,8 @@ public class UploadActivity extends AppCompatActivity {
 
     private static final int REQUEST_PERMISSION_STORAGE = 100;
     private static final int REQUEST_PERMISSION_CAMERA = 101;
+
+    private SessionManager sessionManager;
 
     ImageView uploadImage;
     Button saveButton, btnAmbilFoto;
@@ -86,6 +89,7 @@ public class UploadActivity extends AppCompatActivity {
         saveButton = findViewById(R.id.saveButton);
 
         apiService = new ApiService(this);
+        sessionManager = new SessionManager(this);
 
         uploadImage.setOnClickListener(view -> {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
@@ -182,8 +186,9 @@ public class UploadActivity extends AppCompatActivity {
             outStream.flush();
             outStream.close();
             savedImagePath = imageFile.getAbsolutePath();
+            int userId = sessionManager.getCurrentUserId();
             apiService.uploadDocument(
-                    1,
+                    userId,
                     docName,
                     docDate,
                     docNumber,

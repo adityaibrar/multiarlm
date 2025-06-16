@@ -7,6 +7,8 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.bumptech.glide.Glide;
+
 import java.io.File;
 
 public class ImageViewActivity extends AppCompatActivity {
@@ -41,20 +43,22 @@ public class ImageViewActivity extends AppCompatActivity {
         String docNumber = getIntent().getStringExtra("doc_number");
         String docDesc = getIntent().getStringExtra("doc_desc");
 
-        // Load image
-        if (imagePath != null) {
-            File imageFile = new File(imagePath);
-            if (imageFile.exists()) {
-                Uri imageUri = Uri.fromFile(imageFile);
-                ivFullImage.setImageURI(imageUri);
-            }
+        // Load image dengan Glide
+        if (imagePath != null && !imagePath.isEmpty()) {
+            Glide.with(this)
+                    .load(imagePath)
+                    .placeholder(R.drawable.ic_image_placeholder) // Placeholder saat loading
+                    .error(R.drawable.ic_image_error) // Gambar error jika gagal
+                    .into(ivFullImage);
+        } else {
+            ivFullImage.setImageResource(R.drawable.ic_image_placeholder);
         }
 
         // Set document details
-        tvDocName.setText(docName != null ? docName : "");
-        tvDocDate.setText(docDate != null ? docDate : "");
-        tvDocNumber.setText(docNumber != null ? docNumber : "");
-        tvDocDesc.setText(docDesc != null ? docDesc : "");
+        tvDocName.setText(docName != null ? docName : "Tidak ada nama");
+        tvDocDate.setText(docDate != null ? docDate : "Tidak ada tanggal");
+        tvDocNumber.setText(docNumber != null ? docNumber : "Tidak ada nomor");
+        tvDocDesc.setText(docDesc != null ? docDesc : "Tidak ada deskripsi");
     }
 
     private void setupBackButton() {

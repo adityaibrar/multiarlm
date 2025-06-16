@@ -1,18 +1,25 @@
 package com.example.mutiralmm;
 
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mutiralmm.adapters.ImageDetailAdapter;
+import com.example.mutiralmm.helpers.SessionManager;
+import com.example.mutiralmm.services.ApiService;
 
-import java.io.File;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,84 +28,105 @@ public class FolderDetailActivity extends AppCompatActivity {
     private RecyclerView rvImages;
     private TextView tvTitle;
     private ImageView btnBack;
-    private String folderPath;
     private String folderName;
-    private DBHelper dbHelper;
     private ImageDetailAdapter adapter;
+    private SessionManager sessionManager;
+    ApiService apiService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_folder_detail);
+        sessionManager = new SessionManager(this);
 
-        folderPath = getIntent().getStringExtra("folder_path");
         folderName = getIntent().getStringExtra("folder_name");
 
         initViews();
         setupRecyclerView();
+        initService();
         loadImages();
         setupBackButton();
+    }
+
+    private void initService(){
+        apiService = new ApiService(this);
     }
 
     private void initViews() {
         rvImages = findViewById(R.id.rvImages);
         tvTitle = findViewById(R.id.tvTitle);
         btnBack = findViewById(R.id.btnBack);
-        dbHelper = new DBHelper(this);
 
         tvTitle.setText("Album " + folderName);
     }
 
     private void setupRecyclerView() {
-        adapter = new ImageDetailAdapter(this);
+        adapter = new ImageDetailAdapter(this); // Initialize with empty list
         rvImages.setLayoutManager(new GridLayoutManager(this, 2));
         rvImages.setAdapter(adapter);
     }
 
     private void loadImages() {
-        List<DocumentItem> documents = getDocumentsFromFolder();
-        adapter.setDocuments(documents);
+        // Fetch documents from server
+        fetchDocumentsFromServer();
     }
 
-    private List<DocumentItem> getDocumentsFromFolder() {
-        List<DocumentItem> documents = new ArrayList<>();
-        SQLiteDatabase db = dbHelper.getReadableDatabase();
+    private void fetchDocumentsFromServer() {
+        int userId = sessionManager.getCurrentUserId();
+        // Gunakan folderName sebagai filter tahun
+        String year = folderName.replaceAll("\\D+", ""); // Hapus semua karakter non-angka
+        Log.e("isinya year", year);
+        apiService.getDocuments(userId, 1, 100, "", year, new ApiService.ApiCallback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                runOnUiThread(() -> {
+                    try {
+                        boolean success = response.getBoolean("success");
+                        if (success) {
+                            JSONObject data = response.getJSONObject("data");
+                            JSONArray documentsArray = data.getJSONArray("documents");
 
-        String selection = DBHelper.COLUMN_DOC_YEAR + " = ?";
-        String[] selectionArgs = {folderName};
+                            List<DocumentItem> documents = new ArrayList<>();
 
-        Cursor cursor = db.query(
-                DBHelper.TABLE_DOC,
-                null,
-                selection,
-                selectionArgs,
-                null,
-                null,
-                DBHelper.COLUMN_DOC_DATE + " DESC"
-        );
+                            for (int i = 0; i < documentsArray.length(); i++) {
+                                JSONObject docObj = documentsArray.getJSONObject(i);
+                                DocumentItem item = new DocumentItem();
+                                item.setId(docObj.getInt("id"));
+                                item.setDocName(docObj.getString("doc_name"));
+                                item.setDocDate(docObj.optString("doc_date", ""));
+                                item.setDocNumber(docObj.getString("doc_number"));
+                                item.setDocDesc(docObj.getString("doc_desc"));
+                                item.setImagePath(docObj.getString("image_path"));
+                                item.setDocYear(docObj.getString("doc_year"));
 
-        if (cursor.moveToFirst()) {
-            do {
-                DocumentItem item = new DocumentItem();
-                item.setId(cursor.getInt(cursor.getColumnIndexOrThrow(DBHelper.COLUMN_DOC_ID)));
-                item.setDocName(cursor.getString(cursor.getColumnIndexOrThrow(DBHelper.COLUMN_DOC_NAME)));
-                item.setDocDate(cursor.getString(cursor.getColumnIndexOrThrow(DBHelper.COLUMN_DOC_DATE)));
-                item.setDocNumber(cursor.getString(cursor.getColumnIndexOrThrow(DBHelper.COLUMN_DOC_NUMBER)));
-                item.setDocDesc(cursor.getString(cursor.getColumnIndexOrThrow(DBHelper.COLUMN_DOC_DESC)));
-                item.setImagePath(cursor.getString(cursor.getColumnIndexOrThrow(DBHelper.COLUMN_IMAGE_PATH)));
-                item.setDocYear(cursor.getString(cursor.getColumnIndexOrThrow(DBHelper.COLUMN_DOC_YEAR)));
+                                documents.add(item);
+                            }
 
-                // Verifikasi file masih ada
-                File imageFile = new File(item.getImagePath());
-                if (imageFile.exists()) {
-                    documents.add(item);
-                }
-            } while (cursor.moveToNext());
-        }
+                            // Update adapter dengan data baru
+                            adapter.setDocuments(documents);
 
-        cursor.close();
-        db.close();
-        return documents;
+                        } else {
+                            String message = response.optString("message", "Gagal memuat dokumen");
+                            Toast.makeText(FolderDetailActivity.this, "Error: " + message, Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(FolderDetailActivity.this, "Error parsing data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    // Cek apakah error karena unauthorized
+                    if (!sessionManager.handleApiError(FolderDetailActivity.this, error)) {
+                        // Jika bukan error unauthorized, tampilkan pesan error biasa
+                        Toast.makeText(FolderDetailActivity.this, "Failed to load documents: " + error, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
     }
 
     private void setupBackButton() {

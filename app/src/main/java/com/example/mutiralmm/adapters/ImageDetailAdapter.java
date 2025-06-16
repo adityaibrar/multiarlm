@@ -3,6 +3,7 @@ package com.example.mutiralmm.adapters;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +13,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.mutiralmm.FolderDetailActivity;
 import com.example.mutiralmm.ImageViewActivity;
 import com.example.mutiralmm.R;
@@ -67,26 +69,26 @@ public class ImageDetailAdapter extends RecyclerView.Adapter<ImageDetailAdapter.
         }
 
         public void bind(FolderDetailActivity.DocumentItem document) {
-            // Load image menggunakan Uri
-            File imageFile = new File(document.getImagePath());
-            if (imageFile.exists()) {
-                Uri imageUri = Uri.fromFile(imageFile);
-                ivImage.setImageURI(imageUri);
-            } else {
-                ivImage.setImageResource(R.drawable.ic_image_placeholder);
-            }
+            String imagePath = document.getImagePath();
 
             tvDocName.setText(document.getDocName());
             tvDocDate.setText(document.getDocDate());
 
-            // Set click listener untuk melihat detail atau membuka gambar
+            // Gabungkan base URL dengan image_path
+            String fullImageUrl = "http://10.0.2.2:8000/multiarlm/" + imagePath;
+
+            Log.d("ImageURL", fullImageUrl); // Untuk debugging
+
+            Glide.with(context)
+                    .load(fullImageUrl)
+                    .placeholder(R.drawable.ic_image_placeholder)
+                    .error(R.drawable.ic_image_error)
+                    .into(ivImage);
+
             itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(context, ImageViewActivity.class);
-                intent.putExtra("image_path", document.getImagePath());
+                intent.putExtra("image_path", fullImageUrl);
                 intent.putExtra("doc_name", document.getDocName());
-                intent.putExtra("doc_date", document.getDocDate());
-                intent.putExtra("doc_number", document.getDocNumber());
-                intent.putExtra("doc_desc", document.getDocDesc());
                 context.startActivity(intent);
             });
         }

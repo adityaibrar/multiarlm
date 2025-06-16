@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.mutiralmm.adapters.AlbumAdapter;
+import com.example.mutiralmm.helpers.SessionManager;
 import com.example.mutiralmm.services.ApiService;
 
 import org.json.JSONArray;
@@ -38,21 +39,17 @@ public class AlbumActivity extends AppCompatActivity {
     private List<AlbumAdapter.AlbumFolder> filteredFolders;
 
     private ApiService apiService;
-    private SharedPreferences sharedPreferences;
-    private int userId;
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_album);
 
+        sessionManager = new SessionManager(this);
+
         initViews();
         initApiService();
-
-        // Validasi user login sebelum melanjutkan
-        if (!validateUserSession()) {
-            return; // Jika tidak valid, activity akan di-finish
-        }
 
         setupRecyclerView();
         setupSearch();
@@ -69,31 +66,6 @@ public class AlbumActivity extends AppCompatActivity {
 
     private void initApiService() {
         apiService = new ApiService(this);
-        sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-    }
-
-    private boolean validateUserSession() {
-        // Cek apakah user sudah login
-        boolean isLoggedIn = sharedPreferences.getBoolean("is_logged_in", false);
-        userId = sharedPreferences.getInt("user_id", 1);
-
-        if (!isLoggedIn || userId == -1) {
-            Toast.makeText(this, "Sesi login telah berakhir. Silakan login kembali.", Toast.LENGTH_LONG).show();
-
-            // Hapus data session
-            SharedPreferences.Editor editor = sharedPreferences.edit();
-            editor.clear();
-            editor.apply();
-
-            // Kembali ke login
-            Intent intent = new Intent(this, LoginActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-            return false;
-        }
-
-        return true;
     }
 
     private void setupRecyclerView() {
@@ -105,10 +77,7 @@ public class AlbumActivity extends AppCompatActivity {
     }
 
     private void loadAlbums() {
-        if (userId == -1) {
-            Toast.makeText(this, "User ID tidak valid", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        int userId = sessionManager.getCurrentUserId();
 
         showLoading(true);
 
@@ -118,61 +87,32 @@ public class AlbumActivity extends AppCompatActivity {
             public void onSuccess(JSONObject response) {
                 runOnUiThread(() -> {
                     try {
-//                        Log.e("userId: ", u);
                         showLoading(false);
-
                         boolean success = response.getBoolean("success");
                         if (success) {
                             JSONObject data = response.getJSONObject("data");
-                            JSONArray documentsArray = data.getJSONArray("documents");
-
-                            // Group documents by year to create album folders
-                            Map<String, List<JSONObject>> documentsByYear = new HashMap<>();
-
-                            for (int i = 0; i < documentsArray.length(); i++) {
-                                JSONObject docObj = documentsArray.getJSONObject(i);
-                                String year = docObj.getString("doc_year");
-
-                                if (!documentsByYear.containsKey(year)) {
-                                    documentsByYear.put(year, new ArrayList<>());
-                                }
-                                documentsByYear.get(year).add(docObj);
-                            }
+                            JSONArray albumsArray = data.getJSONArray("albums");
 
                             allFolders.clear();
 
-                            // Create album folders from grouped documents
-                            for (Map.Entry<String, List<JSONObject>> entry : documentsByYear.entrySet()) {
-                                String year = entry.getKey();
-                                List<JSONObject> docs = entry.getValue();
+                            for (int i = 0; i < albumsArray.length(); i++) {
+                                JSONObject albumObj = albumsArray.getJSONObject(i);
 
-                                // Find the latest modified document for lastModified
-                                long latestModified = 0;
-                                for (JSONObject doc : docs) {
-                                    try {
-                                        // Convert created_at to timestamp (simplified)
-                                        String createdAt = doc.getString("created_at");
-                                        long timestamp = System.currentTimeMillis(); // Fallback
-                                        // You might want to parse the actual date string here
-                                        if (timestamp > latestModified) {
-                                            latestModified = timestamp;
-                                        }
-                                    } catch (Exception e) {
-                                        latestModified = System.currentTimeMillis();
-                                    }
-                                }
+                                String name = albumObj.getString("name");
+                                int fileCount = albumObj.getInt("fileCount");
+                                long lastModified = albumObj.getLong("lastModified");
 
                                 AlbumAdapter.AlbumFolder albumFolder = new AlbumAdapter.AlbumFolder(
-                                        "Dokumen " + year,
-                                        "documents/" + year,
-                                        docs.size(),
-                                        latestModified
+                                        "Dokumen " + name,
+                                        name,
+                                        fileCount,
+                                        lastModified
                                 );
 
                                 allFolders.add(albumFolder);
                             }
 
-                            // Sort folders by name (year) descending
+                            // Sort descending by year
                             allFolders.sort((f1, f2) -> f2.getName().compareTo(f1.getName()));
 
                             updateFilteredFolders();
@@ -184,7 +124,6 @@ public class AlbumActivity extends AppCompatActivity {
                             String message = response.optString("message", "Gagal memuat dokumen");
                             Toast.makeText(AlbumActivity.this, "Error: " + message, Toast.LENGTH_SHORT).show();
                         }
-
                     } catch (Exception e) {
                         e.printStackTrace();
                         Toast.makeText(AlbumActivity.this, "Error parsing data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -198,19 +137,8 @@ public class AlbumActivity extends AppCompatActivity {
                     showLoading(false);
 
                     // Cek apakah error karena unauthorized
-                    if (error.contains("401") || error.contains("unauthorized")) {
-                        Toast.makeText(AlbumActivity.this, "Sesi login berakhir. Silakan login kembali.", Toast.LENGTH_LONG).show();
-
-                        // Hapus session dan kembali ke login
-                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                        editor.clear();
-                        editor.apply();
-
-                        Intent intent = new Intent(AlbumActivity.this, LoginActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        startActivity(intent);
-                        finish();
-                    } else {
+                    if (!sessionManager.handleApiError(AlbumActivity.this, error)) {
+                        // Jika bukan error unauthorized, tampilkan pesan error biasa
                         Toast.makeText(AlbumActivity.this, "Failed to load documents: " + error, Toast.LENGTH_LONG).show();
                     }
                 });
@@ -269,21 +197,5 @@ public class AlbumActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
-        // Validasi ulang session ketika activity resume
-        if (validateUserSession()) {
-            // Refresh data ketika kembali dari activity lain
-            loadAlbums();
-        }
-    }
-
-    // Method untuk mendapatkan current user ID (jika dibutuhkan di tempat lain)
-    public int getCurrentUserId() {
-        return userId;
-    }
-
-    // Method untuk mendapatkan username (jika dibutuhkan)
-    public String getCurrentUsername() {
-        return sharedPreferences.getString("username", "");
     }
 }

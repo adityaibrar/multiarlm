@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.mutiralmm.helpers.SessionManager;
 import com.example.mutiralmm.services.ApiService;
 
 import org.json.JSONException;
@@ -19,7 +20,8 @@ public class LoginActivity extends AppCompatActivity {
     TextView tvRegister;
     DBHelper dbHelper;
     ApiService apiService;
-    SharedPreferences sharedPreferences;
+
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,9 +35,7 @@ public class LoginActivity extends AppCompatActivity {
 
         dbHelper = new DBHelper(this);
         apiService = new ApiService(this);
-
-        // Inisialisasi SharedPreferences
-        sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        sessionManager = new SessionManager(this);
 
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -43,13 +43,11 @@ public class LoginActivity extends AppCompatActivity {
                 String username = etUsername.getText().toString().trim();
                 String password = etPassword.getText().toString().trim();
 
-                // Validasi input
                 if (username.isEmpty() || password.isEmpty()) {
                     Toast.makeText(LoginActivity.this, "Username dan password tidak boleh kosong", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                // Tampilkan loading (opsional)
                 btnLogin.setEnabled(false);
                 btnLogin.setText("Logging in...");
 
@@ -61,26 +59,19 @@ public class LoginActivity extends AppCompatActivity {
                                 boolean success = response.getBoolean("success");
 
                                 if (success) {
-                                    // Ambil data user dari response
                                     JSONObject userData = response.getJSONObject("data");
                                     int userId = userData.getInt("user_id");
                                     String userFullName = userData.optString("full_name", username);
 
-                                    // Simpan data user ke SharedPreferences
-                                    SharedPreferences.Editor editor = sharedPreferences.edit();
-                                    editor.putInt("user_id", userId);
-                                    editor.putString("username", username);
-                                    editor.putString("full_name", userFullName);
-                                    editor.putBoolean("is_logged_in", true);
-                                    editor.apply(); // Gunakan apply() untuk async
+                                    // MENGGUNAKAN SESSIONMANAGER - LEBIH SEDERHANA!
+                                    sessionManager.createUserSession(userId, username, userFullName);
 
                                     Toast.makeText(LoginActivity.this, "Login sukses", Toast.LENGTH_SHORT).show();
 
-                                    // Pindah ke Dashboard
                                     Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
-                                    intent.putExtra("user_id", userId); // Untuk backward compatibility
+                                    intent.putExtra("user_id", userId);
                                     startActivity(intent);
-                                    finish(); // Tutup LoginActivity
+                                    finish();
 
                                 } else {
                                     String message = response.optString("message", "Login gagal");
@@ -91,7 +82,6 @@ public class LoginActivity extends AppCompatActivity {
                                 e.printStackTrace();
                                 Toast.makeText(LoginActivity.this, "Error parsing response", Toast.LENGTH_SHORT).show();
                             } finally {
-                                // Reset tombol login
                                 btnLogin.setEnabled(true);
                                 btnLogin.setText("Login");
                             }
@@ -102,8 +92,6 @@ public class LoginActivity extends AppCompatActivity {
                     public void onError(String error) {
                         runOnUiThread(() -> {
                             Toast.makeText(LoginActivity.this, "Login gagal: " + error, Toast.LENGTH_SHORT).show();
-
-                            // Reset tombol login
                             btnLogin.setEnabled(true);
                             btnLogin.setText("Login");
                         });
@@ -127,12 +115,6 @@ public class LoginActivity extends AppCompatActivity {
         super.onStart();
 
         // Cek apakah user sudah login
-        boolean isLoggedIn = sharedPreferences.getBoolean("is_logged_in", false);
-        if (isLoggedIn) {
-            // Jika sudah login, langsung ke Dashboard
-            Intent intent = new Intent(this, DashboardActivity.class);
-            startActivity(intent);
-            finish();
-        }
+        sessionManager.checkAutoLogin(this, DashboardActivity.class);
     }
 }
