@@ -127,6 +127,20 @@
                 android:textSize="16sp"
                 android:textColor="#000000" />
 
+            <!-- Tombol Delete -->
+            <Button
+                android:id="@+id/btnDelete"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Hapus Dokumen"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#FF4040"
+                android:layout_marginTop="16dp"
+                android:padding="12dp"
+                android:textSize="16sp"
+                android:layout_marginLeft="16dp"
+                android:layout_marginRight="16dp"/>
+
         </LinearLayout>
 
     </LinearLayout>

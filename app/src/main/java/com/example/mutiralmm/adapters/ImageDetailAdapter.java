@@ -1,5 +1,6 @@
 package com.example.mutiralmm.adapters;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -27,13 +28,19 @@ public class ImageDetailAdapter extends RecyclerView.Adapter<ImageDetailAdapter.
 
     private Context context;
     private List<FolderDetailActivity.DocumentItem> documents;
+    private ApiService apiService;
+    private int requestCode;
 
-    ApiService apiService;
-
-    public ImageDetailAdapter(Context context) {
+    public ImageDetailAdapter(Context context, int requestCode) {
         this.context = context;
         this.documents = new ArrayList<>();
         this.apiService = new ApiService(context);
+        this.requestCode = requestCode;
+    }
+
+    // Overload constructor untuk backward compatibility
+    public ImageDetailAdapter(Context context) {
+        this(context, 100); // Default request code
     }
 
     public void setDocuments(List<FolderDetailActivity.DocumentItem> documents) {
@@ -79,9 +86,8 @@ public class ImageDetailAdapter extends RecyclerView.Adapter<ImageDetailAdapter.
             tvDocDate.setText(document.getDocDate());
 
             // Gabungkan base URL dengan image_path
-//            String fullImageUrl = "http://10.0.2.2:8000/multiarlm/" + imagePath;
             String fullImageUrl = apiService.getImageUrl(document.getImagePath());
-            Log.d("ImageURL", fullImageUrl); // Untuk debugging
+            Log.d("ImageURL", fullImageUrl);
 
             Glide.with(context)
                     .load(fullImageUrl)
@@ -91,12 +97,26 @@ public class ImageDetailAdapter extends RecyclerView.Adapter<ImageDetailAdapter.
 
             itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(context, ImageViewActivity.class);
+
+                // Kirim data dengan benar
+                intent.putExtra("id", document.getId());
                 intent.putExtra("image_path", fullImageUrl);
                 intent.putExtra("doc_name", document.getDocName());
                 intent.putExtra("doc_date", document.getDocDate());
                 intent.putExtra("doc_number", document.getDocNumber());
                 intent.putExtra("doc_desc", document.getDocDesc());
-                context.startActivity(intent);
+
+                // Debug log
+                Log.d("ImageDetailAdapter", "Sending document ID: " + document.getId());
+                Log.d("ImageDetailAdapter", "Sending doc name: " + document.getDocName());
+
+                // PENTING: Gunakan startActivityForResult untuk mendapatkan callback
+                if (context instanceof Activity) {
+                    ((Activity) context).startActivityForResult(intent, requestCode);
+                } else {
+                    context.startActivity(intent);
+                    Log.w("ImageDetailAdapter", "Context is not Activity, cannot use startActivityForResult");
+                }
             });
         }
     }

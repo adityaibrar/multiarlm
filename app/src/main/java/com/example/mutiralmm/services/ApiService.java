@@ -216,7 +216,7 @@ public class ApiService {
             );
 
             Request request = new Request.Builder()
-                    .url(BASE_URL + "document.php?action=delete")
+                    .url(BASE_URL + "dokumen.php?action=delete")
                     .post(body)
                     .build();
 

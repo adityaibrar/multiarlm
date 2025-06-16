@@ -33,6 +33,9 @@ public class FolderDetailActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     ApiService apiService;
 
+    // Request code untuk startActivityForResult
+    private static final int REQUEST_VIEW_IMAGE = 100;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -61,7 +64,7 @@ public class FolderDetailActivity extends AppCompatActivity {
     }
 
     private void setupRecyclerView() {
-        adapter = new ImageDetailAdapter(this); // Initialize with empty list
+        adapter = new ImageDetailAdapter(this, REQUEST_VIEW_IMAGE); // Pass request code
         rvImages.setLayoutManager(new GridLayoutManager(this, 2));
         rvImages.setAdapter(adapter);
     }
@@ -105,6 +108,8 @@ public class FolderDetailActivity extends AppCompatActivity {
                             // Update adapter dengan data baru
                             adapter.setDocuments(documents);
 
+                            Log.d("FolderDetailActivity", "Documents loaded: " + documents.size());
+
                         } else {
                             String message = response.optString("message", "Gagal memuat dokumen");
                             Toast.makeText(FolderDetailActivity.this, "Error: " + message, Toast.LENGTH_SHORT).show();
@@ -131,6 +136,24 @@ public class FolderDetailActivity extends AppCompatActivity {
 
     private void setupBackButton() {
         btnBack.setOnClickListener(v -> onBackPressed());
+    }
+
+    // TAMBAHAN: Method untuk handle result dari ImageViewActivity
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_VIEW_IMAGE && resultCode == RESULT_OK) {
+            // Dokumen berhasil dihapus, refresh data
+            Log.d("FolderDetailActivity", "Document deleted, refreshing data...");
+            Toast.makeText(this, "Memuat ulang data...", Toast.LENGTH_SHORT).show();
+            loadImages(); // Fetch ulang documents
+        }
+    }
+
+    // Method public untuk refresh dari adapter jika diperlukan
+    public void refreshData() {
+        loadImages();
     }
 
     // Model untuk dokumen
