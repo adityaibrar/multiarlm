@@ -61,7 +61,7 @@ public class AlbumActivity extends AppCompatActivity {
         rvAlbum = findViewById(R.id.rvAlbum);
         etSearch = findViewById(R.id.etSearch);
         btnBack = findViewById(R.id.btnBack);
-        // progressBar = findViewById(R.id.progressBar); // Pastikan ada di layout
+         progressBar = findViewById(R.id.progressBar); // Pastikan ada di layout
     }
 
     private void initApiService() {

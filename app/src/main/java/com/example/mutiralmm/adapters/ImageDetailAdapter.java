@@ -89,6 +89,9 @@ public class ImageDetailAdapter extends RecyclerView.Adapter<ImageDetailAdapter.
                 Intent intent = new Intent(context, ImageViewActivity.class);
                 intent.putExtra("image_path", fullImageUrl);
                 intent.putExtra("doc_name", document.getDocName());
+                intent.putExtra("doc_date", document.getDocDate());
+                intent.putExtra("doc_number", document.getDocNumber());
+                intent.putExtra("doc_desc", document.getDocDesc());
                 context.startActivity(intent);
             });
         }
