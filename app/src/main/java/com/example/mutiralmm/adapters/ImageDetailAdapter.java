@@ -17,6 +17,7 @@ import com.bumptech.glide.Glide;
 import com.example.mutiralmm.FolderDetailActivity;
 import com.example.mutiralmm.ImageViewActivity;
 import com.example.mutiralmm.R;
+import com.example.mutiralmm.services.ApiService;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -27,9 +28,12 @@ public class ImageDetailAdapter extends RecyclerView.Adapter<ImageDetailAdapter.
     private Context context;
     private List<FolderDetailActivity.DocumentItem> documents;
 
+    ApiService apiService;
+
     public ImageDetailAdapter(Context context) {
         this.context = context;
         this.documents = new ArrayList<>();
+        this.apiService = new ApiService(context);
     }
 
     public void setDocuments(List<FolderDetailActivity.DocumentItem> documents) {
@@ -75,8 +79,8 @@ public class ImageDetailAdapter extends RecyclerView.Adapter<ImageDetailAdapter.
             tvDocDate.setText(document.getDocDate());
 
             // Gabungkan base URL dengan image_path
-            String fullImageUrl = "http://10.0.2.2:8000/multiarlm/" + imagePath;
-
+//            String fullImageUrl = "http://10.0.2.2:8000/multiarlm/" + imagePath;
+            String fullImageUrl = apiService.getImageUrl(document.getImagePath());
             Log.d("ImageURL", fullImageUrl); // Untuk debugging
 
             Glide.with(context)

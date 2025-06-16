@@ -117,39 +117,6 @@ public class ApiService {
         }
     }
 
-    public void checkUsername(String username, ApiCallback callback) {
-        try {
-            JSONObject json = new JSONObject();
-            json.put("username", username);
-
-            RequestBody body = RequestBody.create(
-                    MediaType.parse("application/json; charset=utf-8"),
-                    json.toString()
-            );
-
-            Request request = new Request.Builder()
-                    .url(BASE_URL + "auth.php?action=check_username")
-                    .post(body)
-                    .build();
-
-            client.newCall(request).enqueue(new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    Log.e(TAG, "Check username request failed", e);
-                    callback.onError("Network error: " + e.getMessage());
-                }
-
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    handleJsonResponse(response, callback);
-                }
-            });
-
-        } catch (JSONException e) {
-            callback.onError("JSON error: " + e.getMessage());
-        }
-    }
-
     // Document Methods
     public void uploadDocument(int userId, String docName, String docDate,
                                String docNumber, String docDesc, File imageFile, ApiCallback callback) {
@@ -289,7 +256,7 @@ public class ApiService {
             );
 
             Request request = new Request.Builder()
-                    .url(BASE_URL + "document.php?action=update")
+                    .url(BASE_URL + "dokumen.php?action=update")
                     .post(body)
                     .build();
 
